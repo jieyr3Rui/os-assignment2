@@ -4,11 +4,14 @@
 #include <stdint.h>
 
 #define NUM_OF_ADDR 1000
-uint16_t *get_addresses(const char* filename, int num);
+uint16_t *get_addresses(char* filename, int num);
 
-int main(){ 
-    const char* filename = "addresses.txt";
-    uint16_t* addresses = get_addresses(filename, NUM_OF_ADDR);
+int main(int argc, char**argv){ 
+    printf("%d\n", argc);
+    printf("%s", argv[1]);
+    // char* filename;
+    // strcpy(filename, argv[1]);
+    uint16_t* addresses = get_addresses(argv[1], NUM_OF_ADDR);
     // for(int ii = 0; ii < NUM_OF_ADDR; ii++){
     //     printf("%d: %hd\n", ii+1, addresses[ii]);
     // }
@@ -20,7 +23,7 @@ int main(){
  * 
  * 
  **/
-uint16_t *get_addresses(const char* fn, int num){
+uint16_t *get_addresses(char* fn, int num){
     uint16_t *addr = (uint16_t*) malloc(sizeof(uint16_t)*num);
     FILE *fp = fopen(fn, "r");
     if(NULL == fp){
