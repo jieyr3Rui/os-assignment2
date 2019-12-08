@@ -15,6 +15,13 @@
 #define SIZE_OF_TLB        16
 #define SIZE_OF_PAGE_TABLE 256
 
+typedef struct node{
+    uint8_t page;
+    uint8_t frame;
+    struct node* prioir;
+    struct node* next;
+}tlb_t;
+
 FILE *file_addresses, *file_backing_store;
 
 uint16_t  addresses_logical[NUM_OF_ADDR] = {0};
@@ -26,11 +33,15 @@ uint8_t   tlb_frame[SIZE_OF_TLB] = {0};
 
 int32_t   tlb_hit = 0;
 int32_t   page_fault = 0;
-int32_t   page_table_curr_max_index = 0;
+int32_t   tlb_max_index = 0;
+int32_t   page_table_max_index = 0;
+int32_t   addresses_physics_frame_max_index = 0;
 
 void read_addresses_logical(void);
-void read_backing_store(void);
+void read_backing_store(uint8_t page_num);
 void get_page(uint16_t address_logigcal);
+void tlb_replace_fifo(uint8_t page_num, uint8_t frame_num);
+void tlb_replace_lru(uint8_t page_num, int8_t frame_num);
 
 int main(int argc, char**argv){ 
     // maybe argc = 1 in linux!
@@ -51,7 +62,6 @@ int main(int argc, char**argv){
 
     read_addresses_logical();
     for(int ii = 0; ii < NUM_OF_ADDR; ii++){
-        printf("%u\n", addresses_logical[ii]);
         get_page(addresses_logical[ii]);
     }
 
@@ -73,13 +83,12 @@ void read_addresses_logical(void){
 void get_page(uint16_t address_logical){
     uint8_t page_number = ((address_logical & 0xFFFF) >> 8);
     uint8_t offset = (address_logical & 0xFF);
-    printf("pn: %u off: %u\n", page_number, offset);
     uint8_t frame_number = 0;
     uint8_t flag = 0;
 
     // check the tlb, tlb hit
     if(flag == 0){
-        for(int ii = 0; ii < SIZE_OF_TLB; ii++){
+        for(int ii = 0; ii < tlb_max_index; ii++){
             if(tlb_page[ii] == page_number){
                 frame_number = tlb_frame[ii];
                 tlb_hit++;
@@ -90,7 +99,7 @@ void get_page(uint16_t address_logical){
 
     // check the page table
     if(flag == 0){
-        for(int ii = 0; ii < page_table_curr_max_index; ii++){
+        for(int ii = 0; ii < page_table_max_index; ii++){
             if(page_table_page[ii] == page_number){
                 frame_number = page_table_frame[ii];
                 flag = 1;
@@ -100,28 +109,49 @@ void get_page(uint16_t address_logical){
 
     // page fault
     if(flag == 0){
-        read_backing_store();
+        read_backing_store(page_number);
         page_fault++;
+        frame_number = addresses_physics_frame_max_index - 1;
         flag = 1;
     }
+    int8_t value = addresses_physics[frame_number][offset];
+    printf("Virtual address: %d Physical address: %d Value: %d\n", address_logical, (frame_number << 8) | offset, value);
+}
 
+void tlb_replace_fifo(uint8_t page_num, uint8_t frame_num){
+    int ii = 0;
+    for(ii = 0; ii < tlb_max_index; ii++){
+        if(tlb_page[ii] == page_num){
+            break;
+        }
+    }
+    if(ii == tlb_max_index){
+        if(tlb_max_index < SIZE_OF_TLB){
+            
+        }
+        else{
+            
+        }
+        
+    }
 
 }
 
 
 /**
- * fn: filename
  * pn: page number
  * */
-void read_backing_store(void){
-    // signed char     buffer[256];
-    // FILE *fp = fopen(fn, "r");
-    // if(NULL == fp){
-    //     printf("failed to open %s\n", fn); 
-    //     return;
-    // }
-    // fseek(fp, (int)pn * 256, SEEK_SET);
-    // // printf("pos = %ld\n", ftell(fp));
-    // fread(bs, sizeof(uint8_t), 256 , fp);
-    // fclose(fp);
+void read_backing_store(uint8_t page_num){
+    int8_t  buffer[SIZE_OF_FRAME];
+    fseek(file_backing_store, ((int)page_num) * SIZE_OF_FRAME, SEEK_SET);
+    fread(buffer, sizeof(int8_t), SIZE_OF_FRAME, file_backing_store);
+    for(int ii = 0; ii < SIZE_OF_FRAME; ii++){
+        addresses_physics[addresses_physics_frame_max_index][ii] = buffer[ii];
+    }
+    page_table_page[page_table_max_index] = page_num;
+    page_table_frame[page_table_max_index] = addresses_physics_frame_max_index;
+
+    page_table_max_index++;
+    addresses_physics_frame_max_index++;
 }
+
