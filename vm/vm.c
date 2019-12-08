@@ -9,7 +9,6 @@
 #define TYPE_FN   uint8_t   // type frame number
 
 
-#define NUM_OF_ADDR        1000
 #define NUM_OF_FRAME       256
 #define SIZE_OF_FRAME      256
 #define SIZE_OF_TLB        16
@@ -24,7 +23,7 @@ typedef struct node{
 
 FILE *file_addresses, *file_backing_store;
 
-uint16_t  addresses_logical[NUM_OF_ADDR] = {0};
+uint16_t  addresses_logical = 0;
 uint8_t   addresses_physics[NUM_OF_FRAME][SIZE_OF_FRAME] = {0};
 uint8_t   page_table_page[SIZE_OF_PAGE_TABLE] = {0};
 uint8_t   page_table_frame[SIZE_OF_PAGE_TABLE] = {0};
@@ -37,7 +36,6 @@ int32_t   tlb_node_number = 0;
 int32_t   page_table_max_index = 0;
 int32_t   addresses_physics_frame_max_index = 0;
 
-void read_addresses_logical(void);
 void read_backing_store(uint8_t page_num);
 void get_page(uint16_t address_logigcal);
 void tlb_replace_fifo(uint8_t page, uint8_t frame);
@@ -61,24 +59,14 @@ int main(int argc, char**argv){
         printf("failed to open BACKING_STORE.bin\n"); 
     }
 
-    read_addresses_logical();
-    for(int ii = 0; ii < NUM_OF_ADDR; ii++){
-        get_page(addresses_logical[ii]);
+    while(fscanf(file_addresses, "%hu", &addresses_logical) != EOF){
+        get_page(addresses_logical);
     }
     // printf("tlb_hit = %d\npage_fault = %d\n",tlb_hit, page_fault);
 
     fclose(file_addresses);
     fclose(file_backing_store);
     return 0;
-}
-
-/**
- * function
- * */
-void read_addresses_logical(void){
-    for(int ii = 0; ii < NUM_OF_ADDR; ii++){
-        fscanf(file_addresses, "%hu", &addresses_logical[ii]);
-    }
 }
 
 
