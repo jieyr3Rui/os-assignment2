@@ -22,7 +22,7 @@ typedef struct node{
     struct node* next;
 }tlb_t;
 
-FILE *file_addresses, *file_backing_store, *file_output;
+FILE *file_addresses, *file_backing_store;
 
 uint16_t  addresses_logical[NUM_OF_ADDR] = {0};
 uint8_t   addresses_physics[NUM_OF_FRAME][SIZE_OF_FRAME] = {0};
@@ -45,31 +45,27 @@ void tlb_replace_lru(uint8_t page, int8_t frame);
 
 int main(int argc, char**argv){ 
     // maybe argc = 1 in linux!
-    if(argc != 2){
-        printf("please input a filename!\n");
+    // printf("arcg = %d\n", argc);
+    if(argc != 3){
+        printf("usage: ./vm [backing_store] [addresses.txt]\n");
         return 0;
     }
 
-    file_addresses = fopen(argv[1], "r");
+    file_addresses = fopen(argv[2], "r");
     if(NULL == file_addresses){
         printf("failed to open address.txt\n"); 
     }
 
-    file_backing_store = fopen("BACKING_STORE.bin", "rb");
+    file_backing_store = fopen(argv[1], "rb");
     if(NULL == file_backing_store){
         printf("failed to open BACKING_STORE.bin\n"); 
-    }
-
-    file_output = fopen("out.txt", "w");
-    if(NULL == file_output){
-        printf("failed to open out.txt\n"); 
     }
 
     read_addresses_logical();
     for(int ii = 0; ii < NUM_OF_ADDR; ii++){
         get_page(addresses_logical[ii]);
     }
-    printf("tlb_hit = %d\npage_fault = %d\n",tlb_hit, page_fault);
+    // printf("tlb_hit = %d\npage_fault = %d\n",tlb_hit, page_fault);
 
     fclose(file_addresses);
     fclose(file_backing_store);
@@ -128,7 +124,7 @@ void get_page(uint16_t address_logical){
     // tlb_replace_fifo(page_number, frame_number);
     tlb_replace_lru(page_number, frame_number);
     int8_t value = addresses_physics[frame_number][offset];
-    fprintf(file_output, "Virtual address: %d Physical address: %d Value: %d\n", address_logical, (frame_number << 8) | offset, value);
+    printf("Virtual address: %d Physical address: %d Value: %d\n", address_logical, (frame_number << 8) | offset, value);
 }
 
 void tlb_replace_fifo(uint8_t page, uint8_t frame){
