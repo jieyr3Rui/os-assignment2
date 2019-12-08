@@ -9,10 +9,28 @@
 #define TYPE_FN   uint8_t   // type frame number
 
 
-#define NUM_OF_ADDR 1000
-void read_addresses(char* fn, uint16_t* addr, int num);
-void read_backing_store(char *fn, uint8_t* bs, uint8_t pn);
-// void      write_out(char *fn, uint8_t* frame);
+#define NUM_OF_ADDR        1000
+#define NUM_OF_FRAME       256
+#define SIZE_OF_FRAME      256
+#define SIZE_OF_TLB        16
+#define SIZE_OF_PAGE_TABLE 256
+
+FILE *file_addresses, *file_backing_store;
+
+uint16_t  addresses_logical[NUM_OF_ADDR] = {0};
+uint8_t   addresses_physics[NUM_OF_FRAME][SIZE_OF_FRAME] = {0};
+uint8_t   page_table_page[SIZE_OF_PAGE_TABLE] = {0};
+uint8_t   page_table_frame[SIZE_OF_PAGE_TABLE] = {0};
+uint8_t   tlb_page[SIZE_OF_TLB] = {0};
+uint8_t   tlb_frame[SIZE_OF_TLB] = {0};
+
+int32_t   tlb_hit = 0;
+int32_t   page_fault = 0;
+int32_t   page_table_curr_max_index = 0;
+
+void read_addresses_logical(void);
+void read_backing_store(void);
+void get_page(uint16_t address_logigcal);
 
 int main(int argc, char**argv){ 
     // maybe argc = 1 in linux!
@@ -21,55 +39,89 @@ int main(int argc, char**argv){
         return 0;
     }
 
-    uint16_t* addresses_logical = (uint16_t*)malloc(sizeof(uint16_t) * NUM_OF_ADDR);
-    uint16_t* addresses_physics = (uint16_t*)malloc(sizeof(uint16_t) * NUM_OF_ADDR);
-    read_addresses(argv[1], addresses_logical, NUM_OF_ADDR);
-    for(int ii = 0; ii < NUM_OF_ADDR; ii++){
-        // printf("%d: %hu ", ii+1, addresses_logical[ii]);
-        uint8_t page_number = addresses_logical[ii] >> 8, offset = addresses_logical[ii] & 0xFF;
-        // printf("page_nunber: %u, offset = %u\n", page_number, offset);
-
-        uint8_t* bs = (uint8_t*)malloc(sizeof(uint8_t));
-        read_backing_store("BACKING_STORE.bin", bs, page_number);
-        int16_t backing_store = (int16_t)*bs;
-        // printf("backing store %d\n", backing_store);
-        addresses_physics[ii] = (backing_store << 8) | ((uint16_t)offset);
-        // printf("addresses_physics %u\n", addresses_physics[ii]);
-        printf("Virtual address: %u Physical address: %u\n", addresses_logical[ii], addresses_physics[ii]);
-
+    file_addresses = fopen(argv[1], "r");
+    if(NULL == file_addresses){
+        printf("failed to open address.txt\n"); 
     }
-    
+
+    file_backing_store = fopen("BACKING_STORE.bin", "rb");
+    if(NULL == file_backing_store){
+        printf("failed to open BACKING_STORE.bin\n"); 
+    }
+
+    read_addresses_logical();
+    for(int ii = 0; ii < NUM_OF_ADDR; ii++){
+        printf("%u\n", addresses_logical[ii]);
+        get_page(addresses_logical[ii]);
+    }
+
+    fclose(file_addresses);
+    fclose(file_backing_store);
     return 0;
 }
 
 /**
- * fn:  filename
- * num: num of addresses
+ * function
  * */
-void read_addresses(char* fn, uint16_t* addr, int num){
-    FILE *fp = fopen(fn, "r");
-    if(NULL == fp || num <= 0){
-        printf("failed to open dos.txt\n"); 
-        return;
+void read_addresses_logical(void){
+    for(int ii = 0; ii < NUM_OF_ADDR; ii++){
+        fscanf(file_addresses, "%hu", &addresses_logical[ii]);
     }
-    for(int ii = 0; ii < num; ii++){
-        fscanf(fp, "%hu", &addr[ii]);
-    }
-    fclose(fp);
 }
+
+
+void get_page(uint16_t address_logical){
+    uint8_t page_number = ((address_logical & 0xFFFF) >> 8);
+    uint8_t offset = (address_logical & 0xFF);
+    printf("pn: %u off: %u\n", page_number, offset);
+    uint8_t frame_number = 0;
+    uint8_t flag = 0;
+
+    // check the tlb, tlb hit
+    if(flag == 0){
+        for(int ii = 0; ii < SIZE_OF_TLB; ii++){
+            if(tlb_page[ii] == page_number){
+                frame_number = tlb_frame[ii];
+                tlb_hit++;
+                flag = 1;
+            }
+        }
+    }
+
+    // check the page table
+    if(flag == 0){
+        for(int ii = 0; ii < page_table_curr_max_index; ii++){
+            if(page_table_page[ii] == page_number){
+                frame_number = page_table_frame[ii];
+                flag = 1;
+            }
+        }
+    }
+
+    // page fault
+    if(flag == 0){
+        read_backing_store();
+        page_fault++;
+        flag = 1;
+    }
+
+
+}
+
 
 /**
  * fn: filename
  * pn: page number
  * */
-void read_backing_store(char* fn, uint8_t* bs, uint8_t pn){
-    FILE *fp = fopen(fn, "rb");
-    if(NULL == fp){
-        printf("failed to open %s\n", fn); 
-        return;
-    }
-    fseek(fp, pn * sizeof(uint8_t), SEEK_SET);
-    // printf("pos = %ld\n", ftell(fp));
-    fread(bs, sizeof(uint8_t), 1 , fp);
-    fclose(fp);
+void read_backing_store(void){
+    // signed char     buffer[256];
+    // FILE *fp = fopen(fn, "r");
+    // if(NULL == fp){
+    //     printf("failed to open %s\n", fn); 
+    //     return;
+    // }
+    // fseek(fp, (int)pn * 256, SEEK_SET);
+    // // printf("pos = %ld\n", ftell(fp));
+    // fread(bs, sizeof(uint8_t), 256 , fp);
+    // fclose(fp);
 }
