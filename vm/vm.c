@@ -22,7 +22,7 @@ typedef struct node{
     struct node* next;
 }tlb_t;
 
-FILE *file_addresses, *file_backing_store;
+FILE *file_addresses, *file_backing_store, *file_output;
 
 uint16_t  addresses_logical[NUM_OF_ADDR] = {0};
 uint8_t   addresses_physics[NUM_OF_FRAME][SIZE_OF_FRAME] = {0};
@@ -58,6 +58,11 @@ int main(int argc, char**argv){
     file_backing_store = fopen("BACKING_STORE.bin", "rb");
     if(NULL == file_backing_store){
         printf("failed to open BACKING_STORE.bin\n"); 
+    }
+
+    file_output = fopen("out.txt", "w");
+    if(NULL == file_output){
+        printf("failed to open out.txt\n"); 
     }
 
     read_addresses_logical();
@@ -123,7 +128,7 @@ void get_page(uint16_t address_logical){
     // tlb_replace_fifo(page_number, frame_number);
     tlb_replace_lru(page_number, frame_number);
     int8_t value = addresses_physics[frame_number][offset];
-    printf("Virtual address: %d Physical address: %d Value: %d\n", address_logical, (frame_number << 8) | offset, value);
+    fprintf(file_output, "Virtual address: %d Physical address: %d Value: %d\n", address_logical, (frame_number << 8) | offset, value);
 }
 
 void tlb_replace_fifo(uint8_t page, uint8_t frame){
