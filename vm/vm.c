@@ -85,11 +85,12 @@ void get_page(uint16_t address_logical){
     uint8_t frame_number = 0;
     uint8_t flag_tlb = 0, flag_page_table = 0;
 
-    // check tlb
+
     
-    printf("test0\n");
+    // printf("test0\n");
     flag_tlb = table_list_search(page_number, &tlb_head, &tlb_last, fifo, &frame_number);
     
+        // check tlb
     printf("test1\n");
     // check the page table
     flag_page_table = table_list_search(page_number, &page_table_head, &page_table_last, fifo, &frame_number);
@@ -98,17 +99,17 @@ void get_page(uint16_t address_logical){
     printf("test2\n");
     if(flag_page_table){ page_table_replace(page_number, &frame_number); page_fault++;}
     
-    printf("test3\n");
+    // printf("test3\n");
     if(flag_tlb) tlb_replace(page_number, frame_number);
     
     else tlb_hit++;
-    printf("test4\n");
+    //printf("test4\n");
     
 
     int8_t value = addresses_physics[frame_number][offset];
     
-    //printf("Virtual address: %d Physical address: %d Value: %d\n", address_logical, (frame_number << 8) | offset, value);
-    //printf("physic used = %d\n", addresses_physics_frame_used);
+    printf("Virtual address: %d Physical address: %d Value: %d\n", address_logical, (frame_number << 8) | offset, value);
+    printf("physic used = %d\n", addresses_physics_frame_used);
 }
 
 void tlb_replace(uint8_t page, uint8_t frame){
@@ -147,7 +148,7 @@ void page_table_replace(uint8_t page, uint8_t *frame){
     // page is not in tlb
     if(page_table_node_number == SIZE_OF_PAGE_TABLE ||
        addresses_physics_frame_used == SIZE_OF_PHYSICS){
-        table_t* p = page_table_head;
+        table_t* p = page_table_last;
         page_table_last = page_table_last->prior;
         page_table_last->next = NULL;
         // p->frame
@@ -178,19 +179,13 @@ void page_table_replace(uint8_t page, uint8_t *frame){
 
 uint8_t table_list_search(uint8_t page, table_t** p_head, table_t** p_last, ag_e ag, uint8_t* frame_out){
     table_t* head = *p_head; table_t* last = *p_last;
-    // if(NULL == last->next) printf("NULL\n");
-    // else printf("FULL\n");
+    
     table_t* p = head;
     int ii = 0;
     while(p != NULL){
-        printf("ii = 0%d\n", ii++);
-        // page is in list
-        // printf("test3\n");
         if(p->page == page){
-            
             *frame_out = p->frame;
-            // printf("frame = %d\n", p->frame);
-            // if ag == lru, arrange list: take p to head
+
             if((ag == lru) && (p != head)){
                 if(p == last){ last = p->prior;}
                 else {p->next->prior = p->prior;}
