@@ -9,7 +9,7 @@
 #define TYPE_FN   uint8_t   // type frame number
 
 
-#define NUM_OF_FRAME       256
+#define SIZE_OF_PHYSICS    128
 #define SIZE_OF_FRAME      256
 #define SIZE_OF_TLB        16
 #define SIZE_OF_PAGE_TABLE 256
@@ -21,25 +21,34 @@ typedef struct node{
     struct node* next;
 }table_t;
 
+typedef enum ag{ fifo = 1, lru = 2, }ag_e;
+typedef enum ta{ tlb = 0, page_table = 1,}ta_e;
+
 FILE *file_addresses, *file_backing_store;
 
 uint16_t  addresses_logical = 0;
-uint8_t   addresses_physics[NUM_OF_FRAME][SIZE_OF_FRAME] = {0};
+uint8_t   addresses_physics[SIZE_OF_PHYSICS][SIZE_OF_FRAME] = {0};
 uint8_t   page_table_page[SIZE_OF_PAGE_TABLE] = {0};
 uint8_t   page_table_frame[SIZE_OF_PAGE_TABLE] = {0};
-table_t* tlb_head = NULL;
-table_t* tlb_last = NULL;
 
-int32_t   tlb_hit = 0;
-int32_t   page_fault = 0;
-int32_t   tlb_node_number = 0;
-int32_t   page_table_max_index = 0;
-int32_t   addresses_physics_frame_max_index = 0;
+table_t*  tlb_head = NULL;
+table_t*  tlb_last = NULL;
+table_t*  page_table_head = NULL;
+table_t*  page_table_last = NULL;
 
-void read_backing_store(uint8_t page_num);
+uint32_t   tlb_hit = 0;
+uint32_t   page_fault = 0;
+uint32_t   tlb_node_number = 0;
+uint32_t   page_table_node_number = 0;
+uint32_t   addresses_physics_frame_used = 0;
+
+void read_backing_store(uint8_t page, uint8_t frame);
 void get_page(uint16_t address_logigcal);
-void tlb_replace_fifo(uint8_t page, uint8_t frame);
-void tlb_replace_lru(uint8_t page, int8_t frame);
+
+void tlb_replace(uint8_t page, uint8_t frame);
+void page_table_replace(uint8_t page, uint8_t *frame);
+
+uint8_t table_list_search(uint8_t page, table_t** head, table_t** last, ag_e ag, uint8_t* frame_out);
 
 int main(int argc, char**argv){ 
     // maybe argc = 1 in linux!
@@ -62,7 +71,7 @@ int main(int argc, char**argv){
     while(fscanf(file_addresses, "%hu", &addresses_logical) != EOF){
         get_page(addresses_logical);
     }
-    // printf("tlb_hit = %d\npage_fault = %d\n",tlb_hit, page_fault);
+    printf("tlb_hit = %d\npage_fault = %d\nphysics used = %d\n",tlb_hit, page_fault, addresses_physics_frame_used);
 
     fclose(file_addresses);
     fclose(file_backing_store);
@@ -74,157 +83,140 @@ void get_page(uint16_t address_logical){
     uint8_t page_number = ((address_logical & 0xFFFF) >> 8);
     uint8_t offset = (address_logical & 0xFF);
     uint8_t frame_number = 0;
-    uint8_t flag = 0;
+    uint8_t flag_tlb = 0, flag_page_table = 0;
 
-    // check the tlb, tlb hit
-    if(flag == 0){
-        table_t* p = tlb_head;
-        while(p != NULL){
-            if(p->page == page_number){
-                frame_number = p->frame;
-                tlb_hit++;
-                flag = 1;
-                break;
-            }
-            else{
-                p = p->next;
-            }
-        }
-    }
-
+    // check tlb
+    
+    printf("test0\n");
+    flag_tlb = table_list_search(page_number, &tlb_head, &tlb_last, fifo, &frame_number);
+    
+    printf("test1\n");
     // check the page table
-    if(flag == 0){
-        for(int ii = 0; ii < page_table_max_index; ii++){
-            if(page_table_page[ii] == page_number){
-                frame_number = page_table_frame[ii];
-                flag = 1;
-            }
-        }
-    }
-
+    flag_page_table = table_list_search(page_number, &page_table_head, &page_table_last, fifo, &frame_number);
+    
     // page fault
-    if(flag == 0){
-        read_backing_store(page_number);
-        page_fault++;
-        frame_number = addresses_physics_frame_max_index - 1;
-        flag = 1;
-    }
-    // tlb_replace_fifo(page_number, frame_number);
-    tlb_replace_lru(page_number, frame_number);
+    printf("test2\n");
+    if(flag_page_table){ page_table_replace(page_number, &frame_number); page_fault++;}
+    
+    printf("test3\n");
+    if(flag_tlb) tlb_replace(page_number, frame_number);
+    
+    else tlb_hit++;
+    printf("test4\n");
+    
+
     int8_t value = addresses_physics[frame_number][offset];
-    printf("Virtual address: %d Physical address: %d Value: %d\n", address_logical, (frame_number << 8) | offset, value);
+    
+    //printf("Virtual address: %d Physical address: %d Value: %d\n", address_logical, (frame_number << 8) | offset, value);
+    //printf("physic used = %d\n", addresses_physics_frame_used);
 }
 
-void tlb_replace_fifo(uint8_t page, uint8_t frame){
-    table_t* p = tlb_head;
-    while(p != NULL){
-        // page is in tlb
-        if(p->page == page){
-            return;
-        }
-        p = p->next;
-    }
-    // page is not in tlb
-    table_t* new_node = (table_t* )malloc(sizeof(table_t));
-    new_node->page = page;
+void tlb_replace(uint8_t page, uint8_t frame){
+    table_t* new_node = (table_t*)malloc(sizeof(table_t));
     new_node->frame = frame;
+    new_node->page = page;
     new_node->next = NULL;
     new_node->prior = NULL;
+    // page is not in tlb
     if(tlb_node_number == 0){
         tlb_head = new_node;
         tlb_last = new_node;
-        
     }
     else{
-        // insert node to head
-        tlb_head->prior = new_node;
-        new_node->next = tlb_head;
-        tlb_head = new_node;
-        // free the last one
         if(tlb_node_number == SIZE_OF_TLB){
             table_t* p = tlb_last;
             tlb_last = tlb_last->prior;
             tlb_last->next = NULL;
             free(p);
         }
+        // insert node to head
+        tlb_head->prior = new_node;
+        new_node->next = tlb_head;
+        tlb_head = new_node;
     }
     // increase node number
     if(tlb_node_number < SIZE_OF_TLB) tlb_node_number++;
 }
 
-void tlb_replace_lru(uint8_t page, int8_t frame){
-    table_t* p = tlb_head;
-    // while (p != NULL){
-    //     if(p->prior == NULL)printf("N");
-    //     else printf("F");
-    //     printf("%d", p->page);
-    //     if(p->next == NULL)printf("N ");
-    //     else printf("F ");
-    //     p = p->next;
-    // }
-    // printf("\n");
-    // p = tlb_head;
+void page_table_replace(uint8_t page, uint8_t *frame){
+    table_t* new_node = (table_t*)malloc(sizeof(table_t));
+    new_node->page = page;
+    new_node->next = NULL;
+    new_node->prior = NULL;
+
+    // page is not in tlb
+    if(page_table_node_number == SIZE_OF_PAGE_TABLE ||
+       addresses_physics_frame_used == SIZE_OF_PHYSICS){
+        table_t* p = page_table_head;
+        page_table_last = page_table_last->prior;
+        page_table_last->next = NULL;
+        // p->frame
+        new_node->frame = p->frame;
+        free(p);
+        page_table_head->prior = new_node;
+        new_node->next = page_table_head;
+        page_table_head = new_node;
+    }
+    else if(page_table_node_number == 0){
+        new_node->frame = addresses_physics_frame_used;
+        page_table_head = new_node;
+        page_table_last = new_node;
+        addresses_physics_frame_used++;
+        page_table_node_number++;
+    }
+    else{
+        new_node->frame = addresses_physics_frame_used;
+        page_table_head->prior = new_node;
+        new_node->next = page_table_head;
+        page_table_head = new_node;
+        addresses_physics_frame_used++;
+        page_table_node_number++;
+    }
+    read_backing_store(new_node->page, new_node->frame);
+    *frame = new_node->frame;
+}
+
+uint8_t table_list_search(uint8_t page, table_t** p_head, table_t** p_last, ag_e ag, uint8_t* frame_out){
+    table_t* head = *p_head; table_t* last = *p_last;
+    // if(NULL == last->next) printf("NULL\n");
+    // else printf("FULL\n");
+    table_t* p = head;
+    int ii = 0;
     while(p != NULL){
-        // page is in tlb
+        printf("ii = 0%d\n", ii++);
+        // page is in list
+        // printf("test3\n");
         if(p->page == page){
-            if(p != tlb_head){
-                if(p == tlb_last){ tlb_last = p->prior;}
+            
+            *frame_out = p->frame;
+            // printf("frame = %d\n", p->frame);
+            // if ag == lru, arrange list: take p to head
+            if((ag == lru) && (p != head)){
+                if(p == last){ last = p->prior;}
                 else {p->next->prior = p->prior;}
                 p->prior->next = p->next;
                 p->prior = NULL;
-                p->next = tlb_head;
-                tlb_head->prior = p;
-                tlb_head = p;
+                p->next = head;
+                head->prior = p;
+                head = p;
             }
-            return;
+            *p_head = head; *p_last = last;
+            return 0;
         }
         p = p->next;
     }
-    // page is not in tlb
-    table_t* new_node = (table_t* )malloc(sizeof(table_t));
-    new_node->page = page;
-    new_node->frame = frame;
-    new_node->next = NULL;
-    new_node->prior = NULL;
-    
-    if(tlb_node_number == 0){
-        tlb_head = new_node;
-        tlb_last = new_node;
-    }
-    else{
-        // insert node to head
-        tlb_head->prior = new_node;
-        new_node->next = tlb_head;
-        tlb_head = new_node;
-        // free the last one
-        if(tlb_node_number == SIZE_OF_TLB){
-            table_t* p = tlb_last;
-            tlb_last = tlb_last->prior;
-
-            tlb_last->next = NULL;
-            free(p);
-            
-        }
-    }
-    // increase node number
-    
-    if(tlb_node_number < SIZE_OF_TLB) tlb_node_number++;
+    *p_head = head; *p_last = last;
+    return 1;
 }
 
 /**
  * pn: page number
  * */
-void read_backing_store(uint8_t page_num){
+void read_backing_store(uint8_t page, uint8_t frame){
     int8_t  buffer[SIZE_OF_FRAME];
-    fseek(file_backing_store, ((int)page_num) * SIZE_OF_FRAME, SEEK_SET);
+    fseek(file_backing_store, ((int)page) * SIZE_OF_FRAME, SEEK_SET);
     fread(buffer, sizeof(int8_t), SIZE_OF_FRAME, file_backing_store);
     for(int ii = 0; ii < SIZE_OF_FRAME; ii++){
-        addresses_physics[addresses_physics_frame_max_index][ii] = buffer[ii];
+        addresses_physics[frame][ii] = buffer[ii];
     }
-    page_table_page[page_table_max_index] = page_num;
-    page_table_frame[page_table_max_index] = addresses_physics_frame_max_index;
-
-    page_table_max_index++;
-    addresses_physics_frame_max_index++;
 }
-
