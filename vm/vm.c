@@ -9,7 +9,7 @@
 #define TYPE_FN   uint8_t   // type frame number
 
 
-#define SIZE_OF_PHYSICS    128
+#define SIZE_OF_PHYSICS    256
 #define SIZE_OF_FRAME      256
 #define SIZE_OF_TLB        16
 #define SIZE_OF_PAGE_TABLE 256
@@ -85,18 +85,13 @@ void get_page(uint16_t address_logical){
     uint8_t frame_number = 0;
     uint8_t flag_tlb = 0, flag_page_table = 0;
 
-
+    //check tlb
+    flag_tlb = table_list_search(page_number, &tlb_head, &tlb_last, lru, &frame_number);
     
-    // printf("test0\n");
-    flag_tlb = table_list_search(page_number, &tlb_head, &tlb_last, fifo, &frame_number);
-    
-        // check tlb
-    printf("test1\n");
     // check the page table
-    flag_page_table = table_list_search(page_number, &page_table_head, &page_table_last, fifo, &frame_number);
+    flag_page_table = table_list_search(page_number, &page_table_head, &page_table_last, lru, &frame_number);
     
     // page fault
-    printf("test2\n");
     if(flag_page_table){ page_table_replace(page_number, &frame_number); page_fault++;}
     
     // printf("test3\n");
@@ -109,7 +104,6 @@ void get_page(uint16_t address_logical){
     int8_t value = addresses_physics[frame_number][offset];
     
     printf("Virtual address: %d Physical address: %d Value: %d\n", address_logical, (frame_number << 8) | offset, value);
-    printf("physic used = %d\n", addresses_physics_frame_used);
 }
 
 void tlb_replace(uint8_t page, uint8_t frame){
@@ -185,7 +179,6 @@ uint8_t table_list_search(uint8_t page, table_t** p_head, table_t** p_last, ag_e
     while(p != NULL){
         if(p->page == page){
             *frame_out = p->frame;
-
             if((ag == lru) && (p != head)){
                 if(p == last){ last = p->prior;}
                 else {p->next->prior = p->prior;}
