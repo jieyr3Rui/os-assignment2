@@ -19,7 +19,7 @@ typedef struct node{
     uint8_t frame;
     struct node* prior;
     struct node* next;
-}tlb_t;
+}table_t;
 
 FILE *file_addresses, *file_backing_store;
 
@@ -27,8 +27,8 @@ uint16_t  addresses_logical = 0;
 uint8_t   addresses_physics[NUM_OF_FRAME][SIZE_OF_FRAME] = {0};
 uint8_t   page_table_page[SIZE_OF_PAGE_TABLE] = {0};
 uint8_t   page_table_frame[SIZE_OF_PAGE_TABLE] = {0};
-tlb_t* tlb_head = NULL;
-tlb_t* tlb_last = NULL;
+table_t* tlb_head = NULL;
+table_t* tlb_last = NULL;
 
 int32_t   tlb_hit = 0;
 int32_t   page_fault = 0;
@@ -78,7 +78,7 @@ void get_page(uint16_t address_logical){
 
     // check the tlb, tlb hit
     if(flag == 0){
-        tlb_t* p = tlb_head;
+        table_t* p = tlb_head;
         while(p != NULL){
             if(p->page == page_number){
                 frame_number = p->frame;
@@ -116,7 +116,7 @@ void get_page(uint16_t address_logical){
 }
 
 void tlb_replace_fifo(uint8_t page, uint8_t frame){
-    tlb_t* p = tlb_head;
+    table_t* p = tlb_head;
     while(p != NULL){
         // page is in tlb
         if(p->page == page){
@@ -125,7 +125,7 @@ void tlb_replace_fifo(uint8_t page, uint8_t frame){
         p = p->next;
     }
     // page is not in tlb
-    tlb_t* new_node = (tlb_t* )malloc(sizeof(tlb_t));
+    table_t* new_node = (table_t* )malloc(sizeof(table_t));
     new_node->page = page;
     new_node->frame = frame;
     new_node->next = NULL;
@@ -142,7 +142,7 @@ void tlb_replace_fifo(uint8_t page, uint8_t frame){
         tlb_head = new_node;
         // free the last one
         if(tlb_node_number == SIZE_OF_TLB){
-            tlb_t* p = tlb_last;
+            table_t* p = tlb_last;
             tlb_last = tlb_last->prior;
             tlb_last->next = NULL;
             free(p);
@@ -153,7 +153,7 @@ void tlb_replace_fifo(uint8_t page, uint8_t frame){
 }
 
 void tlb_replace_lru(uint8_t page, int8_t frame){
-    tlb_t* p = tlb_head;
+    table_t* p = tlb_head;
     // while (p != NULL){
     //     if(p->prior == NULL)printf("N");
     //     else printf("F");
@@ -181,7 +181,7 @@ void tlb_replace_lru(uint8_t page, int8_t frame){
         p = p->next;
     }
     // page is not in tlb
-    tlb_t* new_node = (tlb_t* )malloc(sizeof(tlb_t));
+    table_t* new_node = (table_t* )malloc(sizeof(table_t));
     new_node->page = page;
     new_node->frame = frame;
     new_node->next = NULL;
@@ -198,7 +198,7 @@ void tlb_replace_lru(uint8_t page, int8_t frame){
         tlb_head = new_node;
         // free the last one
         if(tlb_node_number == SIZE_OF_TLB){
-            tlb_t* p = tlb_last;
+            table_t* p = tlb_last;
             tlb_last = tlb_last->prior;
 
             tlb_last->next = NULL;
