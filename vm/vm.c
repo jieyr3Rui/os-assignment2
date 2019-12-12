@@ -9,7 +9,7 @@
 #define TYPE_FN   uint8_t   // type frame number
 
 
-#define SIZE_OF_PHYSICS    256
+#define SIZE_OF_PHYSICS    128
 #define SIZE_OF_FRAME      256
 #define SIZE_OF_TLB        16
 #define SIZE_OF_PAGE_TABLE 256
@@ -62,7 +62,7 @@ int main(int argc, char**argv){
     if(NULL == file_addresses){
         printf("failed to open address.txt\n"); 
     }
-
+                              
     file_backing_store = fopen(argv[1], "rb");
     if(NULL == file_backing_store){
         printf("failed to open BACKING_STORE.bin\n"); 
@@ -71,7 +71,7 @@ int main(int argc, char**argv){
     while(fscanf(file_addresses, "%hu", &addresses_logical) != EOF){
         get_page(addresses_logical);
     }
-    printf("tlb_hit = %d\npage_fault = %d\nphysics used = %d\n",tlb_hit, page_fault, addresses_physics_frame_used);
+    // printf("tlb_hit = %d\npage_fault = %d\n",tlb_hit, page_fault);
 
     fclose(file_addresses);
     fclose(file_backing_store);
@@ -86,10 +86,10 @@ void get_page(uint16_t address_logical){
     uint8_t flag_tlb = 0, flag_page_table = 0;
 
     //check tlb
-    flag_tlb = table_list_search(page_number, &tlb_head, &tlb_last, lru, &frame_number);
+    flag_tlb = table_list_search(page_number, &tlb_head, &tlb_last, fifo, &frame_number);
     
     // check the page table
-    flag_page_table = table_list_search(page_number, &page_table_head, &page_table_last, lru, &frame_number);
+    flag_page_table = table_list_search(page_number, &page_table_head, &page_table_last, fifo, &frame_number);
     
     // page fault
     if(flag_page_table){ page_table_replace(page_number, &frame_number); page_fault++;}
