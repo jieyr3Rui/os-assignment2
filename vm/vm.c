@@ -122,11 +122,14 @@ int main(int argc, char**argv){
             addresses_physics[ii][jj] = 0;
         }
     }
+    int num_of_addr = 0;
     while(fscanf(file_addresses, "%hu", &addresses_logical) != EOF){
         get_page(addresses_logical);
+        num_of_addr++;
     }
     printf("tlb_hit = %d\npage_fault = %d\n",tlb_hit, page_fault);
-
+    printf("num_of_addr = %d, tlb_hit_rate = %f, page_fault_rate = %f\n", 
+    num_of_addr, ((float)tlb_hit)/((float)num_of_addr), ((float)page_fault)/((float)num_of_addr));
     fclose(file_addresses);
     fclose(file_backing_store);
     return 0;

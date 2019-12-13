@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 os.chdir(os.path.split(os.path.realpath(__file__))[0])
 
 # global variable
-num_process = 7
+num_process = 4
 max_run_process_num = 3
 num_page = 256
 delta = 100
@@ -27,12 +27,15 @@ class proccess():
     def run(self):
         if self.state != 'run' or self.time_tick == 0:
             return False
+        global run_time
+        if run_time >= 10000:
+            return False
         self.time_tick = self.time_tick - 1
 
         page = self.pages[np.random.randint(0,self.num_pages)]
         offset = np.random.randint(0, 256)
         y_page.append(page)
-        global run_time
+        
         x_delta.append(int(run_time/delta))
         run_time += 1
         address_file.write(str(page*256+offset)+'\n')
@@ -126,7 +129,7 @@ def print_state(plist_sleep, plist_wait, plist_run):
 
 def running(plist_sleep, plist_wait, plist_run):
     print('strat running')
-    while run_time <= 10000:
+    while run_time < 10000:
         # run to sleep
         new_plist_run = []
         for p in plist_run:
