@@ -14,3 +14,7 @@
 # print(a.sort(key=e))
 import numpy as np
 print(np.random.randint(0, 1))
+a = np.array([1, 2, 4])
+for x in a:
+    x -= 1
+print(a.size)
