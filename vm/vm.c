@@ -15,7 +15,8 @@
 #define SIZE_OF_FRAME      256
 #define SIZE_OF_TLB        16
 #define SIZE_OF_PAGE_TABLE 256
-
+#define PRINT_DETAIL        0 // 0: print details of addresses to run diff
+#define PRINT_RATE          1 // 1: print only tlb_hit_rate and page_fault rate
 typedef struct node{
     uint8_t page;
     uint8_t frame;
@@ -29,6 +30,7 @@ FILE *file_addresses, *file_backing_store;
 algorithm_e algorithm = fifo;
 uint32_t size_of_physics = 256; 
 
+uint8_t print_type = PRINT_DETAIL; 
 uint16_t  addresses_logical = 0;
 uint8_t**   addresses_physics;
 
@@ -76,7 +78,7 @@ int main(int argc, char**argv){
 
     int ch;
     int arg;   // -c argment size_of_physics 
-    while ((ch = getopt(argc, argv, "a:b:c:")) != -1){
+    while ((ch = getopt(argc, argv, "a:b:c:d:")) != -1){
         switch (ch){
             case 'a':
                 fclose(file_addresses);
@@ -100,7 +102,6 @@ int main(int argc, char**argv){
                 }
                 break;
             case 'c':
-
                 arg = atoi(optarg);
                 if(arg >= 8 && arg <= 256){
                     size_of_physics = (uint32_t)arg;
@@ -110,8 +111,21 @@ int main(int argc, char**argv){
                     return -1;
                 }
                 break;
+            case 'd':
+                if(strcmp(optarg, "detail") == 0){
+                    print_type = PRINT_DETAIL;
+                }
+                else if(strcmp(optarg, "rate") == 0){
+                    print_type = PRINT_RATE;
+                }
+                else{
+                    printf("-d arg is invalid, please input 'detail' or 'rate'!\n");
+                    return -1;
+                }
+                break;
             case '?':
                 printf("Unknown option: %c\n",(char)optopt);
+                return -1;
                 break;
         }
     }
@@ -127,9 +141,9 @@ int main(int argc, char**argv){
         get_page(addresses_logical);
         num_of_addr++;
     }
-    printf("tlb_hit = %d\npage_fault = %d\n",tlb_hit, page_fault);
-    printf("num_of_addr = %d, tlb_hit_rate = %f, page_fault_rate = %f\n", 
-    num_of_addr, ((float)tlb_hit)/((float)num_of_addr), ((float)page_fault)/((float)num_of_addr));
+    // printf("tlb_hit = %d\npage_fault = %d\n",tlb_hit, page_fault);
+    printf("tlb_hit_rate = %f\npage_fault_rate = %f\n", 
+    ((float)tlb_hit)/((float)num_of_addr), ((float)page_fault)/((float)num_of_addr));
     fclose(file_addresses);
     fclose(file_backing_store);
     return 0;
@@ -160,7 +174,8 @@ void get_page(uint16_t address_logical){
 
     int8_t value = addresses_physics[frame_number][offset];
     
-    printf("Virtual address: %d Physical address: %d Value: %d\n", address_logical, (frame_number << 8) | offset, value);
+    if(print_type == PRINT_DETAIL)
+        printf("Virtual address: %d Physical address: %d Value: %d\n", address_logical, (frame_number << 8) | offset, value);
 }
 
 void tlb_replace(uint8_t page, uint8_t frame){
