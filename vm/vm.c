@@ -3,6 +3,7 @@
 #include <string.h>
 #include <stdint.h>
 #include <unistd.h>
+#include <getopt.h>
 
 #define TYPE_ADDR uint16_t  // type addresses
 #define TYPE_PN   uint8_t   // type page number
@@ -10,7 +11,7 @@
 #define TYPE_FN   uint8_t   // type frame number
 
 
-#define SIZE_OF_PHYSICS    256
+#define SIZE_OF_PHYSICS    size_of_physics
 #define SIZE_OF_FRAME      256
 #define SIZE_OF_TLB        16
 #define SIZE_OF_PAGE_TABLE 256
@@ -25,11 +26,12 @@ typedef struct node{
 typedef enum ag{ fifo = 0, lru = 1, }algorithm_e;
 
 FILE *file_addresses, *file_backing_store;
+algorithm_e algorithm = fifo;
+uint32_t size_of_physics = 256; 
 
 uint16_t  addresses_logical = 0;
-uint8_t   addresses_physics[SIZE_OF_PHYSICS][SIZE_OF_FRAME] = {0};
-uint8_t   page_table_page[SIZE_OF_PAGE_TABLE] = {0};
-uint8_t   page_table_frame[SIZE_OF_PAGE_TABLE] = {0};
+uint8_t**   addresses_physics;
+
 
 table_t*  tlb_head = NULL;
 table_t*  tlb_last = NULL;
@@ -42,7 +44,6 @@ uint32_t   tlb_node_number = 0;
 uint32_t   page_table_node_number = 0;
 uint32_t   addresses_physics_frame_used = 0;
 
-algorithm_e ag = fifo;
 
 
 void read_backing_store(uint8_t page, uint8_t frame);
@@ -63,42 +64,68 @@ int main(int argc, char**argv){
 
     file_addresses = fopen(argv[2], "r");
     if(NULL == file_addresses){
-        printf("failed to open address.txt\n"); 
+        printf("failed to open %s!\n", argv[2]); 
         return -1;
     }
                               
     file_backing_store = fopen(argv[1], "rb");
     if(NULL == file_backing_store){
-        printf("failed to open BACKING_STORE.bin\n"); 
+        printf("failed to open %s!\n", argv[1]); 
         return -1;
     }
 
     int ch;
-        while ((ch = getopt(argc, argv, "a:b:c:")) != -1){
+    int arg;   // -c argment size_of_physics 
+    while ((ch = getopt(argc, argv, "a:b:c:")) != -1){
         switch (ch){
             case 'a':
-                printf("%s\n", optarg);
-
+                fclose(file_addresses);
+                file_addresses = fopen(optarg, "r");
+                if(NULL == file_addresses){
+                    printf("-a arg is invalid, failed to open %s!\n", optarg); 
+                    return -1;
+                }
                 break;
             case 'b':
-                printf("%s\n", optarg);
+                // printf("%s\n", optarg);
                 if(strcmp(optarg, "lru") == 0){
-                    printf("correct!\n");
+                    algorithm = lru;
+                }
+                else if(strcmp(optarg, "fifo") == 0){
+                    algorithm = fifo;
+                }
+                else{
+                    printf("-b arg is invalid, please input lru or fifo!\n");
+                    return -1;
                 }
                 break;
             case 'c':
-                printf("%s\n", optarg);
+
+                arg = atoi(optarg);
+                if(arg >= 8 && arg <= 256){
+                    size_of_physics = (uint32_t)arg;
+                }
+                else{
+                    printf("-c arg is invalid, please input a size in [8, 256]!\n");
+                    return -1;
+                }
                 break;
             case '?':
                 printf("Unknown option: %c\n",(char)optopt);
                 break;
-            }
-       }
-
-    while(fscanf(file_addresses, "%hu", &addresses_logical) != EOF){
-        //get_page(addresses_logical);
+        }
     }
-    //printf("tlb_hit = %d\npage_fault = %d\n",tlb_hit, page_fault);
+    addresses_physics = (uint8_t**)malloc(sizeof(uint8_t*)*size_of_physics);
+    for(int ii = 0; ii < size_of_physics; ii++){
+        addresses_physics[ii] = (uint8_t*)malloc(sizeof(uint8_t)*SIZE_OF_FRAME);
+        for(int jj = 0; jj < SIZE_OF_FRAME; jj++){
+            addresses_physics[ii][jj] = 0;
+        }
+    }
+    while(fscanf(file_addresses, "%hu", &addresses_logical) != EOF){
+        get_page(addresses_logical);
+    }
+    printf("tlb_hit = %d\npage_fault = %d\n",tlb_hit, page_fault);
 
     fclose(file_addresses);
     fclose(file_backing_store);
@@ -113,10 +140,10 @@ void get_page(uint16_t address_logical){
     uint8_t flag_tlb = 0, flag_page_table = 0;
 
     //check tlb
-    flag_tlb = table_list_search(page_number, &tlb_head, &tlb_last, fifo, &frame_number);
+    flag_tlb = table_list_search(page_number, &tlb_head, &tlb_last, algorithm, &frame_number);
     
     // check the page table
-    flag_page_table = table_list_search(page_number, &page_table_head, &page_table_last, fifo, &frame_number);
+    flag_page_table = table_list_search(page_number, &page_table_head, &page_table_last, algorithm, &frame_number);
     
     // page fault
     if(flag_page_table){ page_table_replace(page_number, &frame_number); page_fault++;}
