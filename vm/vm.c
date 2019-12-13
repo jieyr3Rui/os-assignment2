@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
+#include <unistd.h>
 
 #define TYPE_ADDR uint16_t  // type addresses
 #define TYPE_PN   uint8_t   // type page number
@@ -21,8 +22,7 @@ typedef struct node{
     struct node* next;
 }table_t;
 
-typedef enum ag{ fifo = 1, lru = 2, }ag_e;
-typedef enum ta{ tlb = 0, page_table = 1,}ta_e;
+typedef enum ag{ fifo = 0, lru = 1, }algorithm_e;
 
 FILE *file_addresses, *file_backing_store;
 
@@ -48,7 +48,7 @@ void get_page(uint16_t address_logigcal);
 void tlb_replace(uint8_t page, uint8_t frame);
 void page_table_replace(uint8_t page, uint8_t *frame);
 
-uint8_t table_list_search(uint8_t page, table_t** head, table_t** last, ag_e ag, uint8_t* frame_out);
+uint8_t table_list_search(uint8_t page, table_t** head, table_t** last, algorithm_e ag, uint8_t* frame_out);
 
 int main(int argc, char**argv){ 
     // maybe argc = 1 in linux!
@@ -61,11 +61,13 @@ int main(int argc, char**argv){
     file_addresses = fopen(argv[2], "r");
     if(NULL == file_addresses){
         printf("failed to open address.txt\n"); 
+        return -1;
     }
                               
     file_backing_store = fopen(argv[1], "rb");
     if(NULL == file_backing_store){
         printf("failed to open BACKING_STORE.bin\n"); 
+        return -1;
     }
 
     while(fscanf(file_addresses, "%hu", &addresses_logical) != EOF){
@@ -171,7 +173,7 @@ void page_table_replace(uint8_t page, uint8_t *frame){
     *frame = new_node->frame;
 }
 
-uint8_t table_list_search(uint8_t page, table_t** p_head, table_t** p_last, ag_e ag, uint8_t* frame_out){
+uint8_t table_list_search(uint8_t page, table_t** p_head, table_t** p_last, algorithm_e ag, uint8_t* frame_out){
     table_t* head = *p_head; table_t* last = *p_last;
     
     table_t* p = head;
