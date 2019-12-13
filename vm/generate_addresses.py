@@ -3,7 +3,7 @@ import copy
 import os
 os.chdir(os.path.split(os.path.realpath(__file__))[0])
 
-num_process = 10
+num_process = 7
 max_run_process_num = 3
 num_page = 256
 delta = 100
@@ -52,7 +52,7 @@ class proccess():
         # reset time_tick by random function
         if (self.state == 'sleep' and state == 'wait') or \
            (self.state == 'run'  and  state == 'sleep'):
-           self.time_tick = np.random.randint(1, 50)
+           self.time_tick = np.random.randint(1, 1000)
         self.state = state
         return True
 

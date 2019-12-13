@@ -71,7 +71,7 @@ int main(int argc, char**argv){
     while(fscanf(file_addresses, "%hu", &addresses_logical) != EOF){
         get_page(addresses_logical);
     }
-    // printf("tlb_hit = %d\npage_fault = %d\n",tlb_hit, page_fault);
+    //printf("tlb_hit = %d\npage_fault = %d\n",tlb_hit, page_fault);
 
     fclose(file_addresses);
     fclose(file_backing_store);

@@ -17,11 +17,11 @@ while line:
         break
     [_, physics, __] = re.findall(r"\d+",line)
     flist.append(int(int(physics) / 256))
-
+num = len(flist)
 f.close() 
 frame = np.array(flist)
 x = np.zeros_like(frame)
-for ii in range(len(flist)):
+for ii in range(num):
     x[ii] = int(ii / delta)
 
 plt.scatter(x, frame)
