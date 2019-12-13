@@ -10,7 +10,7 @@
 #define TYPE_FN   uint8_t   // type frame number
 
 
-#define SIZE_OF_PHYSICS    128
+#define SIZE_OF_PHYSICS    256
 #define SIZE_OF_FRAME      256
 #define SIZE_OF_TLB        16
 #define SIZE_OF_PAGE_TABLE 256
@@ -42,6 +42,9 @@ uint32_t   tlb_node_number = 0;
 uint32_t   page_table_node_number = 0;
 uint32_t   addresses_physics_frame_used = 0;
 
+algorithm_e ag = fifo;
+
+
 void read_backing_store(uint8_t page, uint8_t frame);
 void get_page(uint16_t address_logigcal);
 
@@ -53,9 +56,9 @@ uint8_t table_list_search(uint8_t page, table_t** head, table_t** last, algorith
 int main(int argc, char**argv){ 
     // maybe argc = 1 in linux!
     // printf("arcg = %d\n", argc);
-    if(argc != 3){
-        printf("usage: ./vm [backing_store] [addresses.txt]\n");
-        return 0;
+    if(argc < 3){
+        printf("usage: ./vm [backing_store] [addresses.txt] -a[args1] -b[args2] -c[args3]\n");
+        return -1;
     }
 
     file_addresses = fopen(argv[2], "r");
@@ -70,8 +73,30 @@ int main(int argc, char**argv){
         return -1;
     }
 
+    int ch;
+        while ((ch = getopt(argc, argv, "a:b:c:")) != -1){
+        switch (ch){
+            case 'a':
+                printf("%s\n", optarg);
+
+                break;
+            case 'b':
+                printf("%s\n", optarg);
+                if(strcmp(optarg, "lru") == 0){
+                    printf("correct!\n");
+                }
+                break;
+            case 'c':
+                printf("%s\n", optarg);
+                break;
+            case '?':
+                printf("Unknown option: %c\n",(char)optopt);
+                break;
+            }
+       }
+
     while(fscanf(file_addresses, "%hu", &addresses_logical) != EOF){
-        get_page(addresses_logical);
+        //get_page(addresses_logical);
     }
     //printf("tlb_hit = %d\npage_fault = %d\n",tlb_hit, page_fault);
 

@@ -1,0 +1,6 @@
+{
+    "python.pythonPath": "/home/rui/anaconda3/envs/env_std/bin/python",
+    "files.associations": {
+        "unistd.h": "c"
+    }
+}
