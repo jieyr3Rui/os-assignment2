@@ -233,15 +233,16 @@ if __name__ == '__main__':
     lru_tlb_hit = []
     fifo_page_fault = []
     fifo_tlb_hit = []
-    for ii in range(4, 15):
+    size_of_physics = 256
+    for ii in range(4):
         pnum.append(ii)
-        reset_global_value(ii, 3, 100)
+        reset_global_value(6, 3, 100)
         print('strat generating addresses...')
         strat_a_running()
         print('finish generating addresses')
 
         print('start runnign vm using lru...')
-        os.system('./vm BACKING_STORE.bin addresses.txt -aaddresses-locality.txt -blru -c128 -drate > out-locality.txt')
+        os.system('./vm BACKING_STORE.bin addresses.txt -aaddresses-locality.txt -blru -c' + str(size_of_physics) + ' -drate > out-locality.txt')
         print('finish running vm')
         with open('out-locality.txt', 'r') as local:
             line = local.readline()
@@ -249,10 +250,11 @@ if __name__ == '__main__':
             lru_tlb_hit.append(tlb_hit)
             line = local.readline()
             [page_fault] = re.findall(r'\d+\.?\d*', line)
+            print(page_fault)
             lru_page_fault.append(page_fault)
         
         print('start runnign vm using fifo...')
-        os.system('./vm BACKING_STORE.bin addresses.txt -aaddresses-locality.txt -bfifo -c128 -drate > out-locality.txt')
+        os.system('./vm BACKING_STORE.bin addresses.txt -aaddresses-locality.txt -bfifo -c' + str(size_of_physics) + ' -drate > out-locality.txt')
         print('finish running vm')
         with open('out-locality.txt', 'r') as local:
             line = local.readline()
@@ -261,7 +263,8 @@ if __name__ == '__main__':
             line = local.readline()
             [page_fault] = re.findall(r'\d+\.?\d*', line)
             fifo_page_fault.append(page_fault)
-
+            print(page_fault)
+        size_of_physics = size_of_physics / 2
 
     plt.figure(figsize=[8, 6])
     plt.plot(pnum, lru_page_fault, c='b')
