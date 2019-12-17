@@ -216,10 +216,11 @@ def strat_a_running():
 
     plt.figure(figsize=[15, 10])
     plt.scatter(x_delta, y_page)
-    plt.title('proc_num_' + str(num_process) + '_run_' + str(max_run_process_num) + '_delta_' + str(delta)+ '_page')
+    global size_of_physics
+    plt.title('proc_num_' + str(num_process) + '_run_' + str(max_run_process_num) + '_physics_' + str(size_of_physics) +'_delta_' + str(delta) + '_page')
     plt.xlabel('run_time/delta')
     plt.ylabel('page')
-    path = 'traces/proc_num_' + str(num_process) + '_run_' + str(max_run_process_num) + '_delta_' + str(delta)+ '_page.png'
+    path = 'traces/proc_num_' + str(num_process) + '_run_' + str(max_run_process_num) + '_physics_' + str(size_of_physics) + '_delta_' + str(delta)+ '_page.png'
     plt.savefig(path)
     print('save image: ' + path)
 
@@ -233,6 +234,7 @@ if __name__ == '__main__':
     lru_tlb_hit = []
     fifo_page_fault = []
     fifo_tlb_hit = []
+    global size_of_physics
     size_of_physics = 256
     for ii in range(4):
         pnum.append(ii)
@@ -242,7 +244,7 @@ if __name__ == '__main__':
         print('finish generating addresses')
 
         print('start runnign vm using lru...')
-        os.system('./vm BACKING_STORE.bin addresses.txt -aaddresses-locality.txt -blru -c' + str(size_of_physics) + ' -drate > out-locality.txt')
+        os.system('./vm BACKING_STORE.bin addresses.txt -aaddresses-locality.txt -blru -c' + str(int(size_of_physics)) + ' -drate > out-locality.txt')
         print('finish running vm')
         with open('out-locality.txt', 'r') as local:
             line = local.readline()
@@ -254,7 +256,7 @@ if __name__ == '__main__':
             lru_page_fault.append(page_fault)
         
         print('start runnign vm using fifo...')
-        os.system('./vm BACKING_STORE.bin addresses.txt -aaddresses-locality.txt -bfifo -c' + str(size_of_physics) + ' -drate > out-locality.txt')
+        os.system('./vm BACKING_STORE.bin addresses.txt -aaddresses-locality.txt -bfifo -c' + str(int(size_of_physics)) + ' -drate > out-locality.txt')
         print('finish running vm')
         with open('out-locality.txt', 'r') as local:
             line = local.readline()
@@ -266,6 +268,7 @@ if __name__ == '__main__':
             print(page_fault)
         size_of_physics = size_of_physics / 2
 
+    print('start plotting')
     plt.figure(figsize=[8, 6])
     plt.plot(pnum, lru_page_fault, c='b')
     plt.plot(pnum, fifo_page_fault, c='r')
@@ -279,7 +282,7 @@ if __name__ == '__main__':
     plt.xlabel('num of process')
     plt.ylabel('tlb hit rate')
     plt.savefig('tlb_hit.png')
-
+    print('finish plotting')
     # reset_global_value(6, 3, 100)
     # print('strat generating addresses...')
     # strat_a_running()
