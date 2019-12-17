@@ -252,6 +252,7 @@ uint8_t table_list_search(uint8_t page, table_t** p_head, table_t** p_last, algo
         if(p->page == page){
             *frame_out = p->frame;
             if((ag == lru) && (p != head)){
+                // take p to head of list
                 if(p == last){ last = p->prior;}
                 else {p->next->prior = p->prior;}
                 p->prior->next = p->next;
