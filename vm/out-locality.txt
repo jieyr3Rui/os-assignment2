@@ -1,2 +1,2 @@
-tlb_hit_rate = 0.188491
-page_fault_rate = 0.660431
+tlb_hit_rate = 0.267951
+page_fault_rate = 0.621407

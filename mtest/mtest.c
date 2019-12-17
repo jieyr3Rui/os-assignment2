@@ -11,6 +11,7 @@ int main(int argc, char **argv){
 
 
 	char *p, *b, *nb;
+	printf("\npid = %d\n", getpid());
     printf("Text Locations:\n");
     printf("\tAddress of main: %p\n", main);
     printf("\tAddress of move: %p\n", move);
@@ -43,6 +44,7 @@ int main(int argc, char **argv){
     b = sbrk((ptrdiff_t) -16); /* shrink it */
     nb = sbrk((ptrdiff_t) 0);
     printf("\tFinal end of heap: %p\n", nb);
+	sleep(600);
 	return 0;
 }
 
